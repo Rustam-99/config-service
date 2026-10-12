@@ -1,4 +1,3 @@
-
 import os
 from pathlib import Path
 
@@ -75,12 +74,17 @@ def effective_config(request: Request):
     config = get_config()
 
 
+
     # Layer 5: CLI-style query overrides
     for name, value in request.query_params.items():
-        key = name[4:].strip().lower() if name.startswith("set:") else name.lower()
+        if name.startswith("set:"):
+            key = name[4:].strip().lower()
+        else:
+            key = name.strip().lower()
 
         if key in config:
             config[key] = convert_value(key, value)
+
 
 
     # Never reveal the actual API key
