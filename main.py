@@ -77,11 +77,10 @@ def effective_config(request: Request):
 
     # Layer 5: CLI-style query overrides
     for name, value in request.query_params.items():
-        if name.startswith("set:"):
-            key = name[4:].strip().lower()
+        key = name[4:].strip().lower() if name.startswith("set:") else name.lower()
 
-            if key in config:
-                config[key] = convert_value(key, value)
+        if key in config:
+            config[key] = convert_value(key, value)
 
 
     # Never reveal the actual API key
