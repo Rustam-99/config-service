@@ -58,10 +58,12 @@ def get_config():
         if key in config and value is not None:
             config[key] = convert_value(key, value)
 
+
     # Layer 4: operating-system environment variables
     for name, value in os.environ.items():
-        if name.startswith("APP_"):
-            key = name[4:].lower()
+        if name.startswith("APP_") or name == "NUM_WORKERS":
+            key = ALIASES.get(name, name.removeprefix("APP_").lower())
+
             if key in config:
                 config[key] = convert_value(key, value)
 
