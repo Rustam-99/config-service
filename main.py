@@ -33,7 +33,7 @@ def convert_value(key, value):
     if key == "debug":
         if isinstance(value, bool):
             return value
-        return str(value).lower() in ("true", "1", "yes", "on")
+        return str(value).strip().lower() in ("true", "1", "yes", "on")
 
     return str(value)
 
@@ -41,28 +41,31 @@ def convert_value(key, value):
 def get_config():
     config = DEFAULTS.copy()
 
-    # Layer 2: YAML configuration
+    # Layer 2: YAML
     yaml_path = Path("config.development.yaml")
     if yaml_path.exists():
         with yaml_path.open(encoding="utf-8") as file:
             yaml_config = yaml.safe_load(file) or {}
+
         for key, value in yaml_config.items():
             if key in config:
                 config[key] = convert_value(key, value)
 
-    # Layer 3: .env configuration
+    # Layer 3: .env
     env_config = dotenv_values(".env")
     for name, value in env_config.items():
-        key = ALIASES.get(name, name.removeprefix("APP_").lower())
+        key = ALIASES.get(
+            name, name.removeprefix("APP_").lower()
+        )
         if key in config and value is not None:
             config[key] = convert_value(key, value)
 
-
-    # Layer 4: operating-system environment variables
+    # Layer 4: OS environment variables
     for name, value in os.environ.items():
-        if name.startswith("APP_") or name == "NUM_WORKERS":
-            key = ALIASES.get(name, name.removeprefix("APP_").lower())
-
+        if name.startswith("APP_") or name in ALIASES:
+            key = ALIASES.get(
+                name, name.removeprefix("APP_").lower()
+            )
             if key in config:
                 config[key] = convert_value(key, value)
 
@@ -73,21 +76,22 @@ def get_config():
 def effective_config(request: Request):
     config = get_config()
 
+    # Layer 5: CLI overrides
+    for name, value in request.query_params.multi_items():
+        if name == "set":
+            if "=" not in value:
+                continue
+            key, value = value.split("=", 1)
+            key = key.strip().lower()
 
-
-    # Layer 5: CLI-style query overrides
-    for name, value in request.query_params.items():
-        if name.startswith("set:"):
+        elif name.startswith("set:"):
             key = name[4:].strip().lower()
+
         else:
             key = name.strip().lower()
 
         if key in config:
             config[key] = convert_value(key, value)
 
-
-
-    # Never reveal the actual API key
     config["api_key"] = "****"
-
     return config
